@@ -2,7 +2,7 @@
 
 A Python game where you escape from prison using pathfinding algorithms! Navigate through guards and find the optimal path to freedom.
 
-![Game Screenshot](screenshot.png) *(optional: add actual screenshot later)*
+![Game Screenshot](screenshot.png)
 
 ## Features
 - 🎮 Interactive grid-based prison environment
