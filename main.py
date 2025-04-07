@@ -63,14 +63,14 @@ def bfs(grid, start, end):
                     queue.append((nx, ny))
     return None
 
-# رسم الشبكة
+# drow a network
 def draw_grid(screen, grid, path=[]):
     for y in range(GRID_HEIGHT):
         for x in range(GRID_WIDTH):
             rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
             if grid[y][x] == 0:  # road
                 pygame.draw.rect(screen, WHITE, rect)
-            elif grid[y][x] == 1:  # حائط
+            elif grid[y][x] == 1:
                 pygame.draw.rect(screen, BLACK, rect)
             elif grid[y][x] == 2:  # wall
                 pygame.draw.rect(screen, RED, rect)
