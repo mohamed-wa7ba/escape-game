@@ -1,133 +1,138 @@
-import pygame
 import random
-from collections import deque
+import time
 
-#This color palette
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-GRAY = (128, 128, 128)
+# Game constants
+WALL = '▓'  # Wall character
+PATH = ' '  # Empty path
+PLAYER = 'P'  # Player character
+GUARD = 'G'  # Guard character
+EXIT = 'E'  # Exit character
+TRAIL = '·'  # Path suggestion marker
 
-# size of network
-CELL_SIZE = 40
-GRID_WIDTH = 10
-GRID_HEIGHT = 10
+# Maze dimensions
+WIDTH = 15
+HEIGHT = 10
 
 def create_prison():
-    grid = [[0 for _ in range(GRID_WIDTH)] for _ in range(GRID_HEIGHT)]
+    """Create a prison maze with walls, player, exit, and guards"""
+    # Initialize empty prison
+    prison = [[PATH for _ in range(WIDTH)] for _ in range(HEIGHT)]
 
-    for i in range(GRID_WIDTH):
-        grid[0][i] = 1
-        grid[GRID_HEIGHT-1][i] = 1
-    for i in range(GRID_HEIGHT):
-        grid[i][0] = 1
-        grid[i][GRID_WIDTH-1] = 1
+    # Create border walls
+    for i in range(WIDTH):
+        prison[0][i] = WALL
+        prison[HEIGHT-1][i] = WALL
+    for i in range(HEIGHT):
+        prison[i][0] = WALL
+        prison[i][WIDTH-1] = WALL
 
-    # goal and player
-    grid[1][1] = 3  # player
-    grid[GRID_HEIGHT-2][GRID_WIDTH-2] = 4  # goal
+    # Place player at top-left corner
+    prison[1][1] = PLAYER
 
-    # Guard placement (random)
-    for _ in range(5):
-        x, y = random.randint(1, GRID_WIDTH-2), random.randint(1, GRID_HEIGHT-2)
-        if grid[y][x] == 0:
-            grid[y][x] = 2
+    # Place exit at bottom-right corner
+    prison[HEIGHT-2][WIDTH-2] = EXIT
 
-    return grid
+    # Place guards randomly
+    guards = 5
+    while guards > 0:
+        x, y = random.randint(1, WIDTH-2), random.randint(1, HEIGHT-2)
+        if prison[y][x] == PATH:
+            prison[y][x] = GUARD
+            guards -= 1
 
-# BFS path finding algorithm
-def bfs(grid, start, end):
-    queue = deque([start])
-    visited = set([start])
-    parent = {}
-    directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    return prison
 
-    while queue:
-        x, y = queue.popleft()
+def print_prison(prison):
+    """Print the prison layout"""
+    for row in prison:
+        print(' '.join(row))
+    print()
+
+def simple_pathfinder(prison, start, end):
+    """
+    Simple pathfinding algorithm using 'right-hand rule' maze solving
+    Returns a path from start to end (may not be optimal)
+    """
+    x, y = start
+    path = []
+
+    # Movement directions (right, down, left, up)
+    directions = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    dir_idx = 0  # Start with right direction
+
+    for _ in range(100):  # Maximum attempts
+        path.append((x, y))
 
         if (x, y) == end:
-            path = []
-            while (x, y) != start:
-                path.append((x, y))
-                x, y = parent[(x, y)]
-            return path[::-1]
+            return path
 
-        for dx, dy in directions:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT:
-                if grid[ny][nx] != 1 and grid[ny][nx] != 2 and (nx, ny) not in visited:
-                    visited.add((nx, ny))
-                    parent[(nx, ny)] = (x, y)
-                    queue.append((nx, ny))
-    return None
+        # Try to move in current direction
+        dx, dy = directions[dir_idx]
+        nx, ny = x + dx, y + dy
 
-# drow a network
-def draw_grid(screen, grid, path=[]):
-    for y in range(GRID_HEIGHT):
-        for x in range(GRID_WIDTH):
-            rect = pygame.Rect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            if grid[y][x] == 0:  # road
-                pygame.draw.rect(screen, WHITE, rect)
-            elif grid[y][x] == 1:
-                pygame.draw.rect(screen, BLACK, rect)
-            elif grid[y][x] == 2:  # wall
-                pygame.draw.rect(screen, RED, rect)
-            elif grid[y][x] == 3:  # player
-                pygame.draw.rect(screen, BLUE, rect)
-            elif grid[y][x] == 4:  # goal
-                pygame.draw.rect(screen, GREEN, rect)
+        if prison[ny][nx] in (PATH, EXIT):
+            x, y = nx, ny
+        else:
+            # Change direction if can't move
+            dir_idx = (dir_idx + 1) % 4
 
-            # draw the path if found.
-            if (x, y) in path:
-                pygame.draw.circle(screen, (0, 255, 255), (x * CELL_SIZE + CELL_SIZE//2, y * CELL_SIZE + CELL_SIZE//2), 5)
+    return path  # May not reach the goal
 
-# main game
 def main():
-    pygame.init()
-    screen = pygame.display.set_mode((GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE))
-    pygame.display.set_caption("Prison Escape - BFS Pathfinding")
-
-    grid = create_prison()
+    """Main game loop"""
+    prison = create_prison()
     player_pos = (1, 1)
-    end_pos = (GRID_WIDTH-2, GRID_HEIGHT-2)
-    path = []
-    running = True
+    exit_pos = (WIDTH-2, HEIGHT-2)
 
-    while running:
-        screen.fill(WHITE)
+    while True:
+        # Display prison
+        print_prison(prison)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+        # Check win condition
+        if player_pos == exit_pos:
+            print("🎉 Congratulations! You escaped the prison!")
+            break
 
-            if event.type == pygame.KEYDOWN:
-                x, y = player_pos
-                if event.key == pygame.K_UP and grid[y-1][x] != 1 and grid[y-1][x] != 2:
-                    player_pos = (x, y-1)
-                elif event.key == pygame.K_DOWN and grid[y+1][x] != 1 and grid[y+1][x] != 2:
-                    player_pos = (x, y+1)
-                elif event.key == pygame.K_LEFT and grid[y][x-1] != 1 and grid[y][x-1] != 2:
-                    player_pos = (x-1, y)
-                elif event.key == pygame.K_RIGHT and grid[y][x+1] != 1 and grid[y][x+1] != 2:
-                    player_pos = (x+1, y)
-                elif event.key == pygame.K_SPACE: # Safe Path Request
-                    path = bfs(grid, player_pos, end_pos)
+        # Get player input
+        move = input("Use WASD to move, or SPACE to show path: ").lower()
 
-        # Update player's location
-        px, py = player_pos
-        grid[py][px] = 3
+        if move == ' ':
+            # Show suggested path
+            path = simple_pathfinder(prison, player_pos, exit_pos)
+            for x, y in path[1:]:  # Skip current player position
+                if prison[y][x] == PATH:
+                    prison[y][x] = TRAIL
+            print_prison(prison)
+            input("Press Enter to continue...")
+            # Clear path markers
+            for x, y in path[1:]:
+                if prison[y][x] == TRAIL:
+                    prison[y][x] = PATH
+            continue
 
-        # Verify Win
-        if player_pos == end_pos:
-            print("I escaped successfully!🎉")
-            running = False
+        # Process movement
+        dx, dy = 0, 0
+        if move == 'w': dy = -1  # Up
+        elif move == 's': dy = 1  # Down
+        elif move == 'a': dx = -1  # Left
+        elif move == 'd': dx = 1  # Right
+        else:
+            print("Use W for up, S for down, A for left, D for right")
+            continue
 
-        draw_grid(screen, grid, path)
-        pygame.display.flip()
+        # Validate movement
+        new_x, new_y = player_pos[0] + dx, player_pos[1] + dy
+        if prison[new_y][new_x] == WALL:
+            print("Can't walk through walls!")
+            continue
+        elif prison[new_y][new_x] == GUARD:
+            print("💀 You hit a guard! Game over!")
+            break
 
-    pygame.quit()
+        # Update player position
+        prison[player_pos[1]][player_pos[0]] = PATH
+        player_pos = (new_x, new_y)
+        prison[player_pos[1]][player_pos[0]] = PLAYER
 
 if __name__ == "__main__":
     main()
